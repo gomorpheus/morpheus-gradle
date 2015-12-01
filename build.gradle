@@ -96,8 +96,9 @@ bintray {
 
 	publications = ['maven']
 	pkg {
-		repo = 'morpheus'
+		repo = 'gomorpheus'
 		userOrg = 'bertramlabs'
+		vcsUrl = 'https://github.com/gomorpheus/morpheus-gradle'
 		name = 'morpheus-gradle'
 		licenses = ['Apache-2.0']
 	}
