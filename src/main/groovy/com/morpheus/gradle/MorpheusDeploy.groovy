@@ -49,7 +49,6 @@ class MorpheusDeploy extends DefaultTask {
 
 
 	@Input
-    @Optional
     String getMorpheusUser() {
         morpheusExtension.morpheusUser
     }
@@ -58,8 +57,18 @@ class MorpheusDeploy extends DefaultTask {
         morpheusExtension.morpheusUser = morpheusUser
     }
 
-	@Input
+
+    @Input
     @Optional
+    Map<String,String> getDeployConfiguration() {
+        morpheusExtension.deployConfiguration
+    }
+
+    void setDeployConfiguration(Map<String,String> deployConfiguration) {
+        morpheusExtension.deployConfiguration = deployConfiguration
+    }
+
+	@Input
     String getMorpheusPassword() {
         morpheusExtension.morpheusPassword
     }
@@ -79,7 +88,6 @@ class MorpheusDeploy extends DefaultTask {
     }
 
 	@Input
-    @Optional
     String getInstance() {
         morpheusExtension.instance
     }
@@ -126,6 +134,10 @@ class MorpheusDeploy extends DefaultTask {
 	    		Long instanceId = listInstancesResponse.instances.get(0).id;
 	    		CreateDeployResponse response = client.createDeployment(new CreateDeployRequest().appDeploy(appDeploy).instanceId(instanceId));
 	    		Long appDeployId = response.appDeploy.id;
+                AppDeploy appDeploy = response.appDeploy;
+                if(this.getDeployConfiguration()) {
+                    appDeploy.setConfigOptions(this.getDeployConfiguration())
+                }
 	    		// Time to find the files to upload
 	    		morpheusExtension.resolvers.each { Resolver resolver ->
 	    			def resolverFile = project.file(resolver.resolverPath)

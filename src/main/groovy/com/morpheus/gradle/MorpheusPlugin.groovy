@@ -46,6 +46,7 @@ class MorpheusPlugin implements Plugin<Project> {
         		morpheusPassword = morpheusConfig.morpheusPassword
         		applianceUrl = morpheusConfig.applianceUrl
         		instance = morpheusConfig.instance
+                deployConfiguration = morpheusConfig.deployConfiguration
         	}
     	}
 

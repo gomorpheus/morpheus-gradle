@@ -28,6 +28,9 @@ morpheus {
     instance = 'My Instance Name'
 
     from "build/libs/*"
+    deployConfiguration = [
+      catalinaOpts: '-Dgrails.env=prod'
+    ]
 }
 ```
 
