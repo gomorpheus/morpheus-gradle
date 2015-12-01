@@ -7,9 +7,20 @@ import org.gradle.api.file.FileTree
 import org.gradle.api.tasks.Input
 import org.gradle.api.tasks.InputFiles
 import org.gradle.api.tasks.Optional
+import org.gradle.api.GradleException
 import org.gradle.api.tasks.OutputDirectory
 import org.gradle.api.tasks.TaskAction
 import org.gradle.api.file.FileCollection
+import com.morpheus.sdk.MorpheusClient;
+import com.morpheus.sdk.BasicCredentialsProvider;
+import com.morpheus.sdk.provisioning.*;
+import com.morpheus.sdk.deployment.AppDeploy;
+import com.morpheus.sdk.deployment.CreateDeployRequest;
+import com.morpheus.sdk.deployment.RunDeployRequest;
+import com.morpheus.sdk.deployment.RunDeployResponse;
+import com.morpheus.sdk.deployment.UploadFileRequest;
+import com.morpheus.sdk.deployment.CreateDeployResponse;
+import org.gradle.api.tasks.util.PatternSet;
 
 /*
  * Copyright 2014 original authors
@@ -34,5 +45,118 @@ import org.gradle.api.file.FileCollection
  */
 @CompileStatic
 class MorpheusDeploy extends DefaultTask {
-	
+    @Delegate MorpheusExtension morpheusExtension = new MorpheusExtension()
+
+
+	@Input
+    @Optional
+    String getMorpheusUser() {
+        morpheusExtension.morpheusUser
+    }
+
+    void setMorpheusUser(String morpheusUser) {
+        morpheusExtension.morpheusUser = morpheusUser
+    }
+
+	@Input
+    @Optional
+    String getMorpheusPassword() {
+        morpheusExtension.morpheusPassword
+    }
+
+    void setMorpheusPassword(String morpheusPassword) {
+        morpheusExtension.morpheusPassword = morpheusPassword
+    }
+
+	@Input
+    @Optional
+    String getApplianceUrl() {
+        morpheusExtension.applianceUrl
+    }
+
+    void setApplianceUrl(String applianceUrl) {
+        morpheusExtension.applianceUrl = applianceUrl
+    }
+
+	@Input
+    @Optional
+    String getInstance() {
+        morpheusExtension.instance
+    }
+
+    void setInstance(String instance) {
+        morpheusExtension.instance = instance
+    }
+
+    @InputFiles
+    FileTree getSource() {
+    	FileTree src = null
+    	morpheusExtension.resolvers.each { Resolver resolver ->
+    		def resolverFile = project.file(resolver.resolverPath)
+    		
+    		if(resolverFile.exists() && resolverFile.directory) {
+    			def pattern = new PatternSet()
+    			if(resolver.includes != null) {
+    				pattern.setIncludes(resolver.includes)
+    			}
+    			if(resolver.excludes != null) {
+    				pattern.setExcludes(resolver.excludes)
+    			}
+
+    			FileTree currentTree = getProject().files(resolver.resolverPath).getAsFileTree().matching(pattern)
+    			if(src) {
+    				src += currentTree
+    			} else {
+    				src = currentTree
+    			}
+    		}
+    	}
+        return src
+    }
+
+
+    @TaskAction
+    @CompileDynamic
+    void deploy() {
+    	BasicCredentialsProvider credentialsProvider = new BasicCredentialsProvider(morpheusUser,morpheusPassword);
+    	MorpheusClient client = new MorpheusClient(credentialsProvider).setEndpointUrl(this.applianceUrl);
+    	AppDeploy appDeploy = new AppDeploy();
+    	ListInstancesResponse listInstancesResponse = client.listInstances(new ListInstancesRequest().name(this.getInstance()));
+	    	if(listInstancesResponse.instances != null && listInstancesResponse.instances.size() > 0) {
+	    		Long instanceId = listInstancesResponse.instances.get(0).id;
+	    		CreateDeployResponse response = client.createDeployment(new CreateDeployRequest().appDeploy(appDeploy).instanceId(instanceId));
+	    		Long appDeployId = response.appDeploy.id;
+	    		// Time to find the files to upload
+	    		morpheusExtension.resolvers.each { Resolver resolver ->
+	    			def resolverFile = project.file(resolver.resolverPath)
+	    			String destination = resolver.destinationPath ?: ''
+					if(resolverFile.exists() && resolverFile.directory) {
+						def pattern = new PatternSet()
+						if(resolver.includes != null) {
+							pattern.setIncludes(resolver.includes)
+						}
+						if(resolver.excludes != null) {
+							pattern.setExcludes(resolver.excludes)
+						}
+					}
+					def rootURI = resolverFile.toURI()
+	    			FileTree currentTree = getProject().files(resolver.resolverPath).getAsFileTree().matching(pattern)
+	    			currentTree?.files?.each { file ->
+	    				if(!file.isDirectory()) {
+	    					if(destination) {
+	    					destination += "/" + rootURI.relativize(file.getParentFile().toURI()).getPath()	
+		    				} else {
+		    					destination = rootURI.relativize(file.getParentFile().toURI()).getPath()	
+		    				}
+		    				UploadFileRequest fileUploadRequest = new UploadFileRequest().appDeployId(appDeployId).file(file).destination(destination);
+                        	client.uploadDeploymentFile(fileUploadRequest);    
+	    				}
+	    			}
+	    		}
+	    		RunDeployResponse deployResponse = client.runDeploy(new RunDeployRequest().appDeploy(response.appDeploy));
+	    	} else {
+	    		throw new GradleException('Instance not found')
+	    	}
+    }
+
 }
