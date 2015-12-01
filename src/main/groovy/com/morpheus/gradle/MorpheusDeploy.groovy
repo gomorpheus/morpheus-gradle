@@ -134,7 +134,7 @@ class MorpheusDeploy extends DefaultTask {
 	    		Long instanceId = listInstancesResponse.instances.get(0).id;
 	    		CreateDeployResponse response = client.createDeployment(new CreateDeployRequest().appDeploy(appDeploy).instanceId(instanceId));
 	    		Long appDeployId = response.appDeploy.id;
-                AppDeploy appDeploy = response.appDeploy;
+                appDeploy = response.appDeploy;
                 if(this.getDeployConfiguration()) {
                     appDeploy.setConfigOptions(this.getDeployConfiguration())
                 }
