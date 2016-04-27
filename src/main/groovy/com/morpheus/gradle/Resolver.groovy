@@ -19,7 +19,7 @@ package com.morpheus.gradle
 
 class Resolver {
 	String resolverPath
-	List<String> includes = "**/*"
+	List<String> includes = ["**/*"]
 	List<String> excludes
 	String destinationPath
 }

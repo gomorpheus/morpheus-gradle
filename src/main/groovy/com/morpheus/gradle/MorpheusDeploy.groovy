@@ -129,21 +129,23 @@ class MorpheusDeploy extends DefaultTask {
     	BasicCredentialsProvider credentialsProvider = new BasicCredentialsProvider(morpheusUser,morpheusPassword);
     	MorpheusClient client = new MorpheusClient(credentialsProvider).setEndpointUrl(this.applianceUrl);
     	AppDeploy appDeploy = new AppDeploy();
+        if(this.getDeployConfiguration()) {
+            appDeploy.setConfigOptions(this.getDeployConfiguration().collectEntries{entry -> [entry.key,entry.value?.toString()]})
+        }
     	ListInstancesResponse listInstancesResponse = client.listInstances(new ListInstancesRequest().name(this.getInstance()));
 	    	if(listInstancesResponse.instances != null && listInstancesResponse.instances.size() > 0) {
 	    		Long instanceId = listInstancesResponse.instances.get(0).id;
 	    		CreateDeployResponse response = client.createDeployment(new CreateDeployRequest().appDeploy(appDeploy).instanceId(instanceId));
 	    		Long appDeployId = response.appDeploy.id;
                 appDeploy = response.appDeploy;
-                if(this.getDeployConfiguration()) {
-                    appDeploy.setConfigOptions(this.getDeployConfiguration())
-                }
+                
 	    		// Time to find the files to upload
 	    		morpheusExtension.resolvers.each { Resolver resolver ->
 	    			def resolverFile = project.file(resolver.resolverPath)
 	    			String destination = resolver.destinationPath ?: ''
+                    def pattern = new PatternSet()
 					if(resolverFile.exists() && resolverFile.directory) {
-						def pattern = new PatternSet()
+						
 						if(resolver.includes != null) {
 							pattern.setIncludes(resolver.includes)
 						}
@@ -154,6 +156,7 @@ class MorpheusDeploy extends DefaultTask {
 					def rootURI = resolverFile.toURI()
 	    			FileTree currentTree = getProject().files(resolver.resolverPath).getAsFileTree().matching(pattern)
 	    			currentTree?.files?.each { file ->
+
 	    				if(!file.isDirectory()) {
 	    					if(destination) {
 	    					destination += "/" + rootURI.relativize(file.getParentFile().toURI()).getPath()	

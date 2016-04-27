@@ -14,7 +14,7 @@
 * limitations under the License.
 */
 
-package asset.pipeline.gradle
+package com.morpheus.gradle
 
 import org.gradle.api.Plugin
 import org.gradle.api.Project

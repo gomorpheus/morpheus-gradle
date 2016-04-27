@@ -16,7 +16,7 @@ buildscript {
     mavenCentral()
   }
   dependencies {
-    classpath "com.bertramlabs.plugins:morpheus-gradle:0.1.0"
+    classpath "com.bertramlabs.plugins:morpheus-gradle:0.1.3"
   }
 }
 apply plugin: 'com.bertramlabs.morpheus'
