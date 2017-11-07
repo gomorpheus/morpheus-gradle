@@ -26,6 +26,8 @@ class MorpheusExtension {
 	String morpheusUser
 	String morpheusPassword
 	String instance
+	String deploymentName
+	String deploymentVersion
 	Map<String,String> deployConfiguration
 
 	List<Resolver> resolvers = []

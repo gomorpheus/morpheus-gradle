@@ -18,7 +18,7 @@ import com.morpheus.sdk.deployment.AppDeploy;
 import com.morpheus.sdk.deployment.CreateDeployRequest;
 import com.morpheus.sdk.deployment.RunDeployRequest;
 import com.morpheus.sdk.deployment.RunDeployResponse;
-import com.morpheus.sdk.deployment.UploadFileRequest;
+import com.morpheus.sdk.provisioning.UploadFileRequest;
 import com.morpheus.sdk.deployment.CreateDeployResponse;
 import org.gradle.api.tasks.util.PatternSet;
 
@@ -96,6 +96,24 @@ class MorpheusDeploy extends DefaultTask {
         morpheusExtension.instance = instance
     }
 
+    @Input
+    String getDeploymentName() {
+        morpheusExtension.deploymentName
+    }
+
+    void setDeploymentName(String deploymentName) {
+        morpheusExtension.deploymentName = deploymentName
+    }
+
+    @Input
+    String getDeploymentVersion() {
+        morpheusExtension.deploymentVersion
+    }
+
+    void setDeploymentVersion(String deploymentVersion) {
+        morpheusExtension.deploymentVersion = deploymentVersion
+    }
+
     @InputFiles
     FileTree getSource() {
     	FileTree src = null
@@ -129,46 +147,67 @@ class MorpheusDeploy extends DefaultTask {
     	BasicCredentialsProvider credentialsProvider = new BasicCredentialsProvider(morpheusUser,morpheusPassword);
     	MorpheusClient client = new MorpheusClient(credentialsProvider).setEndpointUrl(this.applianceUrl);
     	AppDeploy appDeploy = new AppDeploy();
+        // Get or create the deployment specified
+        ListDeploymentsResponse listDeploymentsResponse = client.listDeployments(new ListDeploymentsRequest().name(deploymentName));
+        Long deploymentId = null;
+        if(listDeploymentsResponse.deployments.size() == 0) {
+            Deployment deployment = new Deployment();
+            deployment.name = this.deploymentName;
+            deployment.description = this.deploymentName + " - Created by Morpheus Gradle Plugin";
+            CreateDeploymentResponse createDeploymentResponse = client.createDeployment(new CreateDeploymentRequest().deployment(deployment));
+            deploymentId = createDeploymentResponse.deployment.id;
+        } else {
+            deploymentId = listDeploymentsResponse.deployments.get(0).id;
+        }
+
+        // Create a new deployment version
+        DeploymentVersion deploymentVersion = new DeploymentVersion();
+        deploymentVersion.userVersion = this.deploymentVersion;
+        CreateDeploymentVersionResponse createDeploymentVersionResponse = client.createDeploymentVersion(new CreateDeploymentVersionRequest().deploymentId(deploymentId).deploymentVersion(deploymentVersion));
+        Long deploymentVersionId = createDeploymentVersionResponse.deploymentVersion.id;
+
+        // Time to do some file uploads
+        morpheusExtension.resolvers.each { Resolver resolver ->
+            def resolverFile = project.file(resolver.resolverPath)
+            String destination = resolver.destinationPath ?: ''
+            def pattern = new PatternSet()
+            if(resolverFile.exists() && resolverFile.directory) {
+                
+                if(resolver.includes != null) {
+                    pattern.setIncludes(resolver.includes)
+                }
+                if(resolver.excludes != null) {
+                    pattern.setExcludes(resolver.excludes)
+                }
+            }
+            def rootURI = resolverFile.toURI()
+            FileTree currentTree = getProject().files(resolver.resolverPath).getAsFileTree().matching(pattern)
+            currentTree?.files?.each { file ->
+
+                if(!file.isDirectory()) {
+                    if(destination) {
+                    destination += "/" + rootURI.relativize(file.getParentFile().toURI()).getPath() 
+                    } else {
+                        destination = rootURI.relativize(file.getParentFile().toURI()).getPath()    
+                    }
+                    UploadFileRequest fileUploadRequest = new UploadFileRequest().deploymentId(deploymentId).deploymentVersionId(deploymentVersionId).file(file).destination(destination);
+                    client.uploadDeploymentVersionFile(fileUploadRequest);    
+                }
+            }
+        }
+
         if(this.getDeployConfiguration()) {
             appDeploy.setConfigOptions(this.getDeployConfiguration().collectEntries{entry -> [entry.key,entry.value?.toString()]})
         }
+
     	ListInstancesResponse listInstancesResponse = client.listInstances(new ListInstancesRequest().name(this.getInstance()));
 	    	if(listInstancesResponse.instances != null && listInstancesResponse.instances.size() > 0) {
 	    		Long instanceId = listInstancesResponse.instances.get(0).id;
-	    		CreateDeployResponse response = client.createDeployment(new CreateDeployRequest().appDeploy(appDeploy).instanceId(instanceId));
-	    		Long appDeployId = response.appDeploy.id;
-                appDeploy = response.appDeploy;
-                
-	    		// Time to find the files to upload
-	    		morpheusExtension.resolvers.each { Resolver resolver ->
-	    			def resolverFile = project.file(resolver.resolverPath)
-	    			String destination = resolver.destinationPath ?: ''
-                    def pattern = new PatternSet()
-					if(resolverFile.exists() && resolverFile.directory) {
-						
-						if(resolver.includes != null) {
-							pattern.setIncludes(resolver.includes)
-						}
-						if(resolver.excludes != null) {
-							pattern.setExcludes(resolver.excludes)
-						}
-					}
-					def rootURI = resolverFile.toURI()
-	    			FileTree currentTree = getProject().files(resolver.resolverPath).getAsFileTree().matching(pattern)
-	    			currentTree?.files?.each { file ->
-
-	    				if(!file.isDirectory()) {
-	    					if(destination) {
-	    					destination += "/" + rootURI.relativize(file.getParentFile().toURI()).getPath()	
-		    				} else {
-		    					destination = rootURI.relativize(file.getParentFile().toURI()).getPath()	
-		    				}
-		    				UploadFileRequest fileUploadRequest = new UploadFileRequest().appDeployId(appDeployId).file(file).destination(destination);
-                        	client.uploadDeploymentFile(fileUploadRequest);    
-	    				}
-	    			}
-	    		}
-	    		RunDeployResponse deployResponse = client.runDeploy(new RunDeployRequest().appDeploy(response.appDeploy));
+                appDeploy.versionId = deploymentVersionId;
+                appDeploy.instanceId = instanceId;
+                CreateDeployResponse createDeployResponse = client.createDeployment(new CreateDeployRequest().appDeploy(appDeploy));
+                Long appDeployId = createDeployResponse.appDeploy.id;
+                RunDeployResponse deployResponse = client.runDeploy(new RunDeployRequest().appDeployId(appDeployId));
 	    	} else {
 	    		throw new GradleException('Instance not found')
 	    	}

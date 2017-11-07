@@ -47,6 +47,8 @@ class MorpheusPlugin implements Plugin<Project> {
         		applianceUrl = morpheusConfig.applianceUrl
         		instance = morpheusConfig.instance
                 deployConfiguration = morpheusConfig.deployConfiguration
+                deploymentName = morpheusConfig.deploymentName ?: project.name
+                deploymentVersion = project.version
         	}
     	}
 
