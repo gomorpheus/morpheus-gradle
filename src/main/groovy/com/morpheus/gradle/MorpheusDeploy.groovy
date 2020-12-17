@@ -205,10 +205,12 @@ class MorpheusDeploy extends DefaultTask {
 	    		Long instanceId = listInstancesResponse.instances.get(0).id;
                 appDeploy.versionId = deploymentVersionId;
                 appDeploy.instanceId = instanceId;
-                appDeploy.stageOnly = true;
+                //appDeploy.stageOnly = true;
                 CreateDeployResponse createDeployResponse = client.createDeployment(new CreateDeployRequest().appDeploy(appDeploy));
                 Long appDeployId = createDeployResponse.appDeploy.id;
-                RunDeployResponse deployResponse = client.runDeploy(new RunDeployRequest().appDeployId(appDeployId));
+                if(createDeployResponse.appDeploy.status == "staged") {
+                    RunDeployResponse deployResponse = client.runDeploy(new RunDeployRequest().appDeployId(appDeployId));
+                }
 	    	} else {
 	    		throw new GradleException('Instance not found')
 	    	}
