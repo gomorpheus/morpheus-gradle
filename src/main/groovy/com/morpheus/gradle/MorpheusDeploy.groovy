@@ -197,7 +197,7 @@ class MorpheusDeploy extends DefaultTask {
         }
 
         if(this.getDeployConfiguration()) {
-            appDeploy.setConfigOptions(this.getDeployConfiguration().collectEntries{entry -> [entry.key,entry.value?.toString()]})
+            appDeploy.config = this.getDeployConfiguration()
         }
 
     	ListInstancesResponse listInstancesResponse = client.listInstances(new ListInstancesRequest().name(this.getInstance()));
