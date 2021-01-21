@@ -23,8 +23,8 @@ apply plugin: 'maven-publish'
 apply plugin: 'maven'
 
 group = 'com.bertramlabs.plugins'
-sourceCompatibility = '1.7'
-targetCompatibility = '1.7'
+sourceCompatibility = '1.8'
+targetCompatibility = '1.8'
 
 ext.isReleaseVersion = !version.endsWith('SNAPSHOT')
 
@@ -38,44 +38,46 @@ dependencies {
 	compile gradleApi()
 	compile localGroovy()
 	compile 'org.apache.httpcomponents:httpclient:4.5.1'
-	compile "com.bertramlabs.plugins:morpheus-java-sdk:0.3.1"
+	compile "com.bertramlabs.plugins:morpheus-java-sdk:0.3.3"
 	testCompile('org.spockframework:spock-core:0.7-groovy-2.0')
 }
 
 publishing {
 	publications {
 		maven(MavenPublication) {
-			artifactId 'morpheus-gradle'
-			pom.withXml {
-				asNode().children().last() + {
-					resolveStrategy = Closure.DELEGATE_FIRST
-					name 'morpheus-gradle'
-					description 'Morpheus Gradle Provisioning Adapter'
-					url 'https://github.com/gomorpheus/morpheus-gradle'
-					scm {
+			from components.java
+			afterEvaluate {
+				artifactId 'morpheus-gradle'
+				pom.withXml {
+					asNode().children().last() + {
+						resolveStrategy = Closure.DELEGATE_FIRST
+						name 'morpheus-gradle'
+						description 'Morpheus Gradle Provisioning Adapter'
 						url 'https://github.com/gomorpheus/morpheus-gradle'
-						connection 'scm:https://bertramdev@github.com/gomorpheus/morpheus-gradle.git'
-						developerConnection 'scm:git://github.com/gomorpheus/morpheus-gradle.git'
-					}
-					licenses {
-						license {
-							name 'The Apache Software License, Version 2.0'
-							url 'http://www.apache.org/license/LICENSE-2.0.txt'
-							distribution 'repo'
+						scm {
+							url 'https://github.com/gomorpheus/morpheus-gradle'
+							connection 'scm:https://bertramdev@github.com/gomorpheus/morpheus-gradle.git'
+							developerConnection 'scm:git://github.com/gomorpheus/morpheus-gradle.git'
 						}
-					}
-					developers {
-						developer {
-							id 'davydotcom'
-							name 'David Estes'
-							email 'davydotcom@gmail.com'
+						licenses {
+							license {
+								name 'The Apache Software License, Version 2.0'
+								url 'http://www.apache.org/license/LICENSE-2.0.txt'
+								distribution 'repo'
+							}
+						}
+						developers {
+							developer {
+								id 'davydotcom'
+								name 'David Estes'
+								email 'davydotcom@gmail.com'
+							}
 						}
 					}
 				}
+				artifact sourcesJar
+				artifact javadocJar
 			}
-			from components.java
-			artifact sourcesJar
-			artifact javadocJar
 		}
 	}
 
